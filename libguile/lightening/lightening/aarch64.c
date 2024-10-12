@@ -165,7 +165,6 @@ struct abi_arg_iterator
 };
 
 static size_t page_size;
-static int has_lse_atomics;
 
 # define HWCAP_ATOMICS	(1 << 8)
 
@@ -261,4 +260,10 @@ static void*
 bless_function_pointer(void *ptr)
 {
   return ptr;
+}
+
+static jit_gpr_t
+get_callr_temp (jit_state_t * _jit)
+{
+  return _LR;
 }

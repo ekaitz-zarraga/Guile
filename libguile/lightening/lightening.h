@@ -77,6 +77,8 @@ jit_same_fprs (jit_fpr_t a, jit_fpr_t b)
 #  include "lightening/aarch64.h"
 #elif defined(__s390__) || defined(__s390x__)
 #  include "lightening/s390.h"
+#elif defined(__riscv__) || defined(__riscv)
+#  include "lightening/riscv.h"
 #endif
 
 enum jit_reloc_kind

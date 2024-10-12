@@ -38,6 +38,8 @@
 #    else
 #      define __WORDSIZE	64
 #    endif
+#  elif defined(__riscv_xlen)
+#    define __WORDSIZE __riscv_xlen		/* riscv */
 #  else						/* From FreeBSD 9.1 stdint.h */
 #    if defined(UINTPTR_MAX) && defined(UINT64_MAX) && \
 	(UINTPTR_MAX == UINT64_MAX)

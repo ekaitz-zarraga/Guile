@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
+#include <sys/mman.h>
 
 #include "../lightening.h"
 
@@ -122,6 +123,8 @@ static void reset_abi_arg_iterator(struct abi_arg_iterator *iter, size_t argc,
                                    const jit_operand_t *args);
 static void next_abi_arg(struct abi_arg_iterator *iter,
                          jit_operand_t *arg);
+
+static jit_gpr_t get_callr_temp (jit_state_t * _jit);
 
 jit_bool_t
 init_jit(void)
@@ -268,6 +271,22 @@ get_temp_gpr(jit_state_t *_jit)
 #ifdef JIT_TMP1
     case 1:
       return JIT_TMP1;
+#endif
+#ifdef JIT_TMP2
+    case 2:
+      return JIT_TMP2;
+#endif
+#ifdef JIT_TMP3
+    case 3:
+      return JIT_TMP3;
+#endif
+#ifdef JIT_TMP4
+    case 4:
+      return JIT_TMP4;
+#endif
+#ifdef JIT_TMP5
+    case 5:
+      return JIT_TMP5;
 #endif
     default:
       abort();
@@ -558,6 +577,8 @@ jit_emit_addr(jit_state_t *j)
 # include "aarch64.c"
 #elif defined(__s390__) || defined(__s390x__)
 # include "s390.c"
+#elif defined(__riscv__) || defined(__riscv)
+# include "riscv.c"
 #endif
 
 #define JIT_IMPL_0(stem, ret) \
@@ -1095,6 +1116,15 @@ jit_move_operands(jit_state_t *_jit, jit_operand_t *dst, jit_operand_t *src,
   enum move_status status[argc];
   for (size_t i = 0; i < argc; i++)
     status[i] = TO_MOVE;
+
+  // Mem-to-mem moves require a temp register but don't overwrite
+  // other argument registers.  Perform them first to free up the tmp
+  // for other uses.
+  for (size_t i = 0; i < argc; i++)
+    if ((status[i] == TO_MOVE)
+	&& (MOVE_KIND (src[i].kind, dst[i].kind) == MOVE_MEM_TO_MEM))
+      move_one(_jit, dst, src, argc, status, i);
+
   for (size_t i = 0; i < argc; i++)
     if (status[i] == TO_MOVE)
       move_one(_jit, dst, src, argc, status, i);
@@ -1156,6 +1186,9 @@ static const jit_gpr_t user_callee_save_gprs[] = {
 #ifdef JIT_V9
   , JIT_V9
 #endif
+#ifdef JIT_V10
+  , JIT_V10
+#endif
  };
 
 static const jit_fpr_t user_callee_save_fprs[] = {
@@ -1182,6 +1215,18 @@ static const jit_fpr_t user_callee_save_fprs[] = {
 #endif
 #ifdef JIT_VF7
   , JIT_VF7
+#endif
+#ifdef JIT_VF8
+  , JIT_VF8
+#endif
+#ifdef JIT_VF9
+  , JIT_VF9
+#endif
+#ifdef JIT_VF10
+  , JIT_VF10
+#endif
+#ifdef JIT_VF11
+  , JIT_VF11
 #endif
 };
 
@@ -1235,11 +1280,23 @@ jit_leave_jit_abi(jit_state_t *_jit, size_t v, size_t vf, size_t frame_size)
 
 // Precondition: stack is already aligned.
 static size_t
-prepare_call_args(jit_state_t *_jit, size_t argc, jit_operand_t args[])
+prepare_call_args(jit_state_t *_jit, size_t argc, jit_operand_t args[],
+		  jit_gpr_t *fun)
 {
-  jit_operand_t dst[argc];
+  size_t count = argc + (fun == NULL ? 0 : 1);
+  jit_operand_t src[count];
+  jit_operand_t dst[count];
+
+  memcpy (src, args, sizeof (jit_operand_t) * argc);
+  if (fun != NULL) {
+    jit_gpr_t fun_tmp = argc == 0 ? *fun : get_callr_temp (_jit);
+    src[argc] = jit_operand_gpr (JIT_OPERAND_ABI_POINTER, *fun);
+    dst[argc] = jit_operand_gpr (JIT_OPERAND_ABI_POINTER, fun_tmp);
+    *fun = fun_tmp;
+  }
+
   struct abi_arg_iterator iter;
-  
+
   // Compute shuffle destinations and space for spilled arguments.
   reset_abi_arg_iterator(&iter, argc, args);
   for (size_t i = 0; i < argc; i++)
@@ -1264,7 +1321,7 @@ prepare_call_args(jit_state_t *_jit, size_t argc, jit_operand_t args[])
     }
   }
 
-  jit_move_operands(_jit, dst, args, argc);
+  jit_move_operands(_jit, dst, src, count);
 
   return stack_size;
 }
@@ -1272,7 +1329,7 @@ prepare_call_args(jit_state_t *_jit, size_t argc, jit_operand_t args[])
 void
 jit_calli(jit_state_t *_jit, jit_pointer_t f, size_t argc, jit_operand_t args[])
 {
-  size_t stack_bytes = prepare_call_args(_jit, argc, args);
+  size_t stack_bytes = prepare_call_args(_jit, argc, args, NULL);
 
   calli(_jit, (jit_word_t)f);
 
@@ -1282,7 +1339,7 @@ jit_calli(jit_state_t *_jit, jit_pointer_t f, size_t argc, jit_operand_t args[])
 void
 jit_callr(jit_state_t *_jit, jit_gpr_t f, size_t argc, jit_operand_t args[])
 {
-  size_t stack_bytes = prepare_call_args(_jit, argc, args);
+  size_t stack_bytes = prepare_call_args(_jit, argc, args, &f);
 
   callr(_jit, jit_gpr_regno(f));
 

@@ -539,6 +539,7 @@ AC_DEFUN([GUILE_ENABLE_JIT], [
     i?86|x86_64|amd64)    JIT_AVAILABLE=yes ;;
     *arm*)                JIT_AVAILABLE=yes ;;
     aarch64)              JIT_AVAILABLE=yes ;;
+    riscv64)              JIT_AVAILABLE=yes ;;
     *)                                      ;;
   esac
   AC_MSG_RESULT($JIT_AVAILABLE)

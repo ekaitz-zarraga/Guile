@@ -1,5 +1,5 @@
-TESTS=$(sort $(basename $(wildcard *.c)))
-TARGETS ?= native ia32 aarch64 armv7
+TESTS ?= $(sort $(basename $(wildcard *.c)))
+TARGETS ?= native ia32 aarch64 armv7 riscv
 
 # Suitable values of cross-compiler variables for Debian:
 #
@@ -14,13 +14,15 @@ TARGETS ?= native ia32 aarch64 armv7
 #     libc6-dev:amd64 gcc make \
 #     qemu binfmt-support qemu-user-static \
 #     gcc-i686-linux-gnu libc6-dev-i386-cross libc6:i386 \
-#     gcc-aarch64-linux-gnu libc6-dev-arm64-cross libc6:arm64
+#     gcc-aarch64-linux-gnu libc6-dev-arm64-cross libc6:arm64\
+#     gcc-riscv64-linux-gnu libc6-dev-riscv64-cross libc6:riscv64
 #
 CC = gcc
-CC_IA32=guix environment --pure -s i686-linux --ad-hoc gcc-toolchain -- gcc
-CC_AARCH64=guix environment --pure -s aarch64-linux --ad-hoc gcc-toolchain -- gcc
-CC_ARMv7=guix environment --pure -s armhf-linux --ad-hoc gcc-toolchain -- gcc
-CFLAGS = -Wall -O0 -g
+CC_IA32 ?= guix environment --pure -s i686-linux --ad-hoc gcc-toolchain -- gcc
+CC_AARCH64 ?= guix environment --pure -s aarch64-linux --ad-hoc gcc-toolchain -- gcc
+CC_ARMv7 ?= guix environment --pure -s armhf-linux --ad-hoc gcc-toolchain -- gcc
+CC_RISCV ?= guix environment --pure -s riscv64-linux --ad-hoc gcc-toolchain -- gcc
+CFLAGS ?= -Wall -O0 -g
 
 all: $(foreach TARGET,$(TARGETS),$(addprefix test-$(TARGET)-,$(TESTS)))
 
@@ -53,6 +55,10 @@ test-aarch64-%: %.c lightening-aarch64.o test.h
 test-armv7-%: CC = $(CC_ARMv7)
 test-armv7-%: %.c lightening-armv7.o test.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -I.. -o $@ lightening-armv7.o $<
+
+test-riscv-%: CC = $(CC_RISCV)
+test-riscv-%: %.c lightening-riscv.o test.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I.. -o $@ lightening-riscv.o $<
 
 .PRECIOUS: $(foreach TARGET,$(TARGETS),$(addprefix test-$(TARGET)-,$(TESTS)))
 .PRECIOUS: $(foreach TARGET,$(TARGETS),lightening-$(TARGET).o)

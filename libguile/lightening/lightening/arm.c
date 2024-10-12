@@ -109,7 +109,7 @@ next_abi_arg(struct abi_arg_iterator *iter, jit_operand_t *arg)
     }
   }
   *arg = jit_operand_mem (abi, JIT_SP, iter->stack_size);
-  iter->stack_size += 4;
+  iter->stack_size += 4 + (abi == JIT_OPERAND_ABI_DOUBLE ? 4 : 0);
 }
 
 static void
@@ -136,4 +136,10 @@ bless_function_pointer(void *ptr)
 {
   // Set low bit to mark as thumb mode.
   return (void*) (((uintptr_t)ptr) | 1);
+}
+
+static jit_gpr_t
+get_callr_temp (jit_state_t * _jit)
+{
+  return _LR;
 }

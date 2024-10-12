@@ -40,6 +40,7 @@ lightening_extra_files =				\
 	$(lightening)/lightening/mips.h			\
 	$(lightening)/lightening/ppc.h			\
 	$(lightening)/lightening/x86.h			\
+	$(lightening)/lightening/riscv.h		\
 							\
 	$(lightening)/lightening/aarch64.c		\
 	$(lightening)/lightening/aarch64-cpu.c		\
@@ -55,4 +56,7 @@ lightening_extra_files =				\
 	$(lightening)/lightening/ppc-fpu.c		\
 	$(lightening)/lightening/x86.c			\
 	$(lightening)/lightening/x86-cpu.c		\
-	$(lightening)/lightening/x86-sse.c
+	$(lightening)/lightening/x86-sse.c		\
+	$(lightening)/lightening/riscv.c		\
+	$(lightening)/lightening/riscv-cpu.c		\
+	$(lightening)/lightening/riscv-fpu.c
